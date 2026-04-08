@@ -33,7 +33,8 @@ app.all('/', async (req, res) => {
   const preSign = ts + method + requestPath + bodyStr;
   const signature = createHmac('sha256', secret).update(preSign).digest('base64');
   try {
-    const response = await fetch(https://api.bitget.com${requestPath}, {
+    // CORRETTO: Aggiunti i backtick intorno all'URL
+    const response = await fetch(`https://api.bitget.com${requestPath}`, {
       method,
       headers: {
         'ACCESS-KEY':        apiKey,
