@@ -67,6 +67,8 @@ app.all('/', async (req, res) => {
 });
 
 // ── BYBIT ─────────────────────────────────────────────────────────────────────
+// Frontend punta a: .../bybit?endpoint=/v5/...
+// Firma: HMAC-SHA256(timestamp + apiKey + recvWindow + queryString|body)
 app.all('/bybit', async (req, res) => {
   const endpoint = req.query.endpoint;
   if (!endpoint) return res.json({ error: 'Endpoint mancante' });
@@ -98,11 +100,11 @@ app.all('/bybit', async (req, res) => {
     const response = await fetch(url, {
       method,
       headers: {
-        'X-BAPI-API-KEY':     apiKey,
-        'X-BAPI-SIGN':        signature,
-        'X-BAPI-TIMESTAMP':   ts,
+        'X-BAPI-API-KEY':   apiKey,
+        'X-BAPI-SIGN':      signature,
+        'X-BAPI-TIMESTAMP': ts,
         'X-BAPI-RECV-WINDOW': recvWindow,
-        'Content-Type':       'application/json',
+        'Content-Type':     'application/json',
       },
       ...(method === 'POST' ? { body: bodyStr } : {}),
     });
@@ -112,22 +114,10 @@ app.all('/bybit', async (req, res) => {
   }
 });
 
-// ── BINGX PUBLIC (no auth — solo CORS proxy per ticker, klines, contracts) ────
-// Frontend punta a: .../bingx-public/openApi/swap/...
-app.all('/bingx-public/*', async (req, res) => {
-  const path = req.path.replace('/bingx-public', '');
-  const params = { ...req.query };
-  const qs = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '';
-  const url = `https://open-api.bingx.com${path}${qs}`;
-  try {
-    const response = await fetch(url);
-    res.json(await response.json());
-  } catch (e) {
-    res.json({ error: e.message });
-  }
-});
-
-// ── BINGX (autenticato) ───────────────────────────────────────────────────────
+// ── BINGX ─────────────────────────────────────────────────────────────────────
+// Frontend punta a: .../bingx?endpoint=/openApi/swap/...&param1=x&param2=y
+// Firma: HMAC-SHA256 in hex su stringa parametri ordinati alfabeticamente + timestamp
+// IMPORTANTE: BingX usa SEMPRE query string (anche per POST), mai body JSON
 app.all('/bingx', async (req, res) => {
   const endpoint = req.query.endpoint;
   if (!endpoint) return res.json({ error: 'Endpoint mancante' });
@@ -165,6 +155,7 @@ app.all('/bingx', async (req, res) => {
         'X-BX-APIKEY':  apiKey,
         'Content-Type': 'application/json',
       },
+      // POST senza body — i parametri sono già nella query string
     });
     res.json(await response.json());
   } catch (e) {
@@ -173,6 +164,9 @@ app.all('/bingx', async (req, res) => {
 });
 
 // ── BLOFIN ────────────────────────────────────────────────────────────────────
+// Frontend punta a: .../blofin?endpoint=/api/v1/...
+// Firma: HMAC-SHA256(timestamp + method + requestPath + body)  → base64
+// Header extra: x-blofin-passphrase (MD5 della passphrase, già gestito lato client di solito)
 app.all('/blofin', async (req, res) => {
   const endpoint = req.query.endpoint;
   if (!endpoint) return res.json({ error: 'Endpoint mancante' });
@@ -219,4 +213,4 @@ app.all('/blofin', async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT || 3000, () => console.log('Proxy running'));
+app.listen(process.env.PORT || 3000, () => console.log('Proxy running'))
